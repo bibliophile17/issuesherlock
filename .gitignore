@@ -3,3 +3,10 @@ firebase-key.json
 venv/
 __pycache__/
 *.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+/tmp/
+*.jpg
+*.jpeg
+*.png

@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IssueSherlock — Conspiracy Board</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital@0;1&family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="logo">🔍 IssueSherlock</div>
+      <a href="/" class="btn-nav">← File New Case</a>
+    </nav>
+
+    <div class="container">
+      <h2 style="margin: 2rem 0 0.5rem; color: var(--accent)">
+        🗺️ Conspiracy Board
+      </h2>
+      <p style="color: var(--muted); margin-bottom: 2rem">
+        All active investigations — patterns, hotspots, and unresolved cases
+      </p>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="stat-number" id="s-total">—</div>
+          <div class="stat-label">Total Cases</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="s-critical" style="color: var(--red)">
+            —
+          </div>
+          <div class="stat-label">Critical</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="s-pending" style="color: var(--accent2)">
+            —
+          </div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="s-resolved" style="color: var(--green)">
+            —
+          </div>
+          <div class="stat-label">Resolved</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="s-hotspots" style="color: #a78bfa">
+            —
+          </div>
+          <div class="stat-label">Hotspots</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="s-rate" style="color: var(--green)">
+            —%
+          </div>
+          <div class="stat-label">Resolution Rate</div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div id="conspiracyMap"></div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <span
+          ><span class="dot" style="background: var(--red)"></span>
+          Critical</span
+        >
+        <span
+          ><span class="dot" style="background: var(--accent2)"></span>
+          High</span
+        >
+        <span
+          ><span class="dot" style="background: var(--accent)"></span>
+          Medium</span
+        >
+        <span
+          ><span class="dot" style="background: var(--green)"></span> Low</span
+        >
+        <span
+          ><span
+            class="dot"
+            style="background: #a78bfa; border: 2px solid #a78bfa"
+          ></span>
+          Hotspot</span
+        >
+      </div>
+
+      <!-- Issue List -->
+      <h3 style="margin: 2rem 0 1rem; color: var(--accent)">📂 All Cases</h3>
+      <div id="issueList">
+        <p style="color: var(--muted)">Loading cases...</p>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const severityColors = {
+        critical: "#e85a5a",
+        high: "#e8935a",
+        medium: "#f5c842",
+        low: "#5ae8a0",
+      };
+
+      // ── Map ───────────────────────────────────────────────────────────────
+      const map = L.map("conspiracyMap").setView([20.5937, 78.9629], 5);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      // ── Load Stats ────────────────────────────────────────────────────────
+      fetch("/api/stats")
+        .then((r) => r.json())
+        .then((s) => {
+          document.getElementById("s-total").textContent = s.total;
+          document.getElementById("s-critical").textContent = s.critical;
+          document.getElementById("s-pending").textContent = s.pending;
+          document.getElementById("s-resolved").textContent = s.resolved;
+          document.getElementById("s-hotspots").textContent = s.hotspots;
+          document.getElementById("s-rate").textContent =
+            s.resolution_rate + "%";
+        });
+
+      // ── Load Issues ───────────────────────────────────────────────────────
+      fetch("/api/issues")
+        .then((r) => r.json())
+        .then((issues) => {
+          const list = document.getElementById("issueList");
+
+          if (!issues.length) {
+            list.innerHTML =
+              '<p style="color:var(--muted)">No cases filed yet. <a href="/" style="color:var(--accent)">File the first one →</a></p>';
+            return;
+          }
+
+          // Add map markers
+          issues.forEach((issue) => {
+            if (!issue.lat || !issue.lon) return;
+            const color = severityColors[issue.severity] || "#f5c842";
+            const isHot = issue.sherlock?.hotspot;
+            const radius = issue.severity === "critical" ? 14 : 9;
+
+            const m = L.circleMarker([issue.lat, issue.lon], {
+              radius,
+              fillColor: color,
+              color: isHot ? "#a78bfa" : color,
+              weight: isHot ? 3 : 1,
+              opacity: 1,
+              fillOpacity: 0.8,
+            }).addTo(map);
+
+            m.bindPopup(`
+      <strong>${issue.headline || issue.issue_type}</strong><br/>
+      <em style="font-size:0.85em">#${issue.case_id}</em><br/>
+      Severity: <strong>${issue.severity}</strong><br/>
+      ${isHot ? "🔥 <strong>Hotspot</strong><br/>" : ""}
+      ${issue.resolved ? "✅ Resolved" : "⏳ Pending"}
+    `);
+          });
+
+          // Render list
+          list.innerHTML = issues
+            .sort((a, b) => {
+              const order = { critical: 0, high: 1, medium: 2, low: 3 };
+              return (order[a.severity] || 2) - (order[b.severity] || 2);
+            })
+            .map(
+              (issue) => `
+    <div class="issue-item" onclick="window.location='/case/${issue.case_id}'">
+      <div>
+        <div style="font-weight:600">${issue.headline || issue.issue_type}</div>
+        <div style="color:var(--muted);font-size:0.85em">#${issue.case_id} · ${issue.location}</div>
+        <div style="color:var(--muted);font-size:0.8em;margin-top:0.2rem">${issue.sherlock?.elementary || ""}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span class="severity-badge severity-${issue.severity}">${issue.severity}</span>
+        ${issue.sherlock?.hotspot ? '<br/><span style="color:#a78bfa;font-size:0.8em">🔥 Hotspot</span>' : ""}
+        ${issue.resolved ? '<br/><span style="color:var(--green);font-size:0.8em">✅ Resolved</span>' : ""}
+      </div>
+    </div>
+  `,
+            )
+            .join("");
+        });
+    </script>
+  </body>
+</html>

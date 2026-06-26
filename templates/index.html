@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IssueSherlock — AI Community Detective</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital@0;1&family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="logo">🔍 IssueSherlock</div>
+      <a href="/dashboard" class="btn-nav">Conspiracy Board →</a>
+    </nav>
+
+    <div class="hero">
+      <p class="tagline">Elementary, my dear citizen.</p>
+      <h1>
+        Every Community Issue Has a <span class="highlight">Pattern.</span>
+      </h1>
+      <p class="subtitle">
+        AI-powered civic detective that doesn't just log issues — it
+        investigates them.
+      </p>
+    </div>
+
+    <div class="container">
+      <!-- Report Form -->
+      <section class="section">
+        <h2>🕵️ File a Case</h2>
+        <form id="reportForm" enctype="multipart/form-data">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Your Name</label>
+              <input
+                type="text"
+                name="name"
+                placeholder="Citizen Detective"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Location <small>(click map below)</small></label>
+              <input
+                type="text"
+                name="location"
+                id="locationInput"
+                placeholder="Click on map to set location"
+                required
+              />
+              <input type="hidden" name="lat" id="latInput" value="20.5937" />
+              <input type="hidden" name="lon" id="lonInput" value="78.9629" />
+            </div>
+
+            <div class="form-group full-width">
+              <label>Describe the Issue</label>
+              <textarea
+                name="description"
+                rows="4"
+                placeholder="Describe what you see — type of issue, size, location details, danger level..."
+                required
+              ></textarea>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Photo Evidence <small>(recommended)</small></label>
+              <div class="upload-zone" id="uploadZone">
+                <input
+                  type="file"
+                  name="image"
+                  id="imageInput"
+                  accept="image/*"
+                  style="display: none"
+                />
+                <div id="uploadPrompt">
+                  📸 Click to upload photo<br /><small
+                    >Watson AI will analyze it</small
+                  >
+                </div>
+                <img
+                  id="imagePreview"
+                  style="display: none; max-width: 100%; border-radius: 8px"
+                />
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" id="submitBtn">
+            🔍 Open Investigation
+          </button>
+        </form>
+      </section>
+
+      <!-- Map -->
+      <section class="section">
+        <h2>📍 Pin Location</h2>
+        <div id="reportMap"></div>
+      </section>
+
+      <!-- Agent Pipeline -->
+      <div id="agentProgress" style="display: none">
+        <div class="agent-pipeline">
+          <div class="agent-step" id="step-watson">
+            <div class="agent-icon">🔬</div>
+            <div class="agent-name">Watson</div>
+            <div class="agent-status">Analyzing image...</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="agent-step" id="step-sherlock">
+            <div class="agent-icon">🕵️</div>
+            <div class="agent-name">Sherlock</div>
+            <div class="agent-status">Detecting patterns...</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="agent-step" id="step-inspector">
+            <div class="agent-icon">📋</div>
+            <div class="agent-name">Inspector</div>
+            <div class="agent-status">Building case file...</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="agent-step" id="step-herald">
+            <div class="agent-icon">📣</div>
+            <div class="agent-name">Herald</div>
+            <div class="agent-status">Deciding escalation...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Case Result -->
+      <div id="caseResult"></div>
+    </div>
+    <!-- /container -->
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      // ── Map ──────────────────────────────────────────────────────────────
+      const map = L.map("reportMap").setView([20.5937, 78.9629], 5);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      let marker;
+      map.on("click", function (e) {
+        const { lat, lng } = e.latlng;
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([lat, lng]).addTo(map);
+        document.getElementById("latInput").value = lat;
+        document.getElementById("lonInput").value = lng;
+
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+        )
+          .then((r) => r.json())
+          .then((d) => {
+            document.getElementById("locationInput").value = d.display_name
+              ? d.display_name.split(",").slice(0, 3).join(", ")
+              : `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          })
+          .catch(() => {
+            document.getElementById("locationInput").value =
+              `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          });
+      });
+
+      // ── Image Upload ─────────────────────────────────────────────────────
+      const uploadZone = document.getElementById("uploadZone");
+      const imageInput = document.getElementById("imageInput");
+      uploadZone.addEventListener("click", () => imageInput.click());
+      imageInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          document.getElementById("imagePreview").src = ev.target.result;
+          document.getElementById("imagePreview").style.display = "block";
+          document.getElementById("uploadPrompt").style.display = "none";
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // ── Form Submit ───────────────────────────────────────────────────────
+      const steps = ["watson", "sherlock", "inspector", "herald"];
+
+      document
+        .getElementById("reportForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("submitBtn");
+          const progress = document.getElementById("agentProgress");
+          const result = document.getElementById("caseResult");
+
+          btn.disabled = true;
+          btn.textContent = "🔍 Investigation in Progress...";
+          progress.style.display = "block";
+          result.innerHTML = "";
+
+          // Animate agents
+          let step = 0;
+          const iv = setInterval(() => {
+            if (step > 0) {
+              document
+                .getElementById(`step-${steps[step - 1]}`)
+                .classList.replace("active", "done");
+            }
+            if (step < steps.length) {
+              document
+                .getElementById(`step-${steps[step]}`)
+                .classList.add("active");
+              step++;
+            } else {
+              clearInterval(iv);
+            }
+          }, 2500);
+
+          try {
+            const fd = new FormData(e.target);
+            const res = await fetch("/api/report", {
+              method: "POST",
+              body: fd,
+            });
+            const data = await res.json();
+
+            clearInterval(iv);
+            steps.forEach((s) => {
+              const el = document.getElementById(`step-${s}`);
+              el.classList.remove("active");
+              el.classList.add("done");
+            });
+
+            if (data.success) showResult(data.case);
+            else
+              result.innerHTML =
+                '<p class="error">Something went wrong. Please try again.</p>';
+          } catch (err) {
+            clearInterval(iv);
+            result.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+          }
+
+          btn.disabled = false;
+          btn.textContent = "🔍 Open Investigation";
+        });
+
+      function showResult(c) {
+        const sc = `severity-${c.severity}`;
+        const pattern = c.sherlock?.pattern_detected;
+        const escalate = c.herald?.should_escalate;
+
+        document.getElementById("caseResult").innerHTML = `
+    <div class="case-card">
+      <div class="case-header">
+        <div>
+          <div class="case-id">Case #${c.case_id}</div>
+          <div class="case-headline">${c.headline || "Issue Under Investigation"}</div>
+          <div class="elementary">"${c.sherlock?.elementary || "The investigation has begun."}"</div>
+        </div>
+        <span class="severity-badge ${sc}">${c.severity}</span>
+      </div>
+
+      <div class="agent-reports">
+        <div class="agent-report-card">
+          <h4>🔬 Watson</h4>
+          <p>${c.watson?.watson_notes || c.watson?.visible_damage || "Analysis complete."}</p>
+          <p class="tag">Issue: ${c.watson?.issue_type} | Risk: ${c.watson?.immediate_risk ? "⚠️ Yes" : "✅ No"}</p>
+        </div>
+        <div class="agent-report-card">
+          <h4>🕵️ Sherlock</h4>
+          <p>${c.sherlock?.sherlock_deduction || "Pattern analysis complete."}</p>
+          ${pattern ? `<p class="tag warn">⚠️ Pattern: ${c.sherlock?.pattern_type} (${c.sherlock?.recurrence_count}x)</p>` : '<p class="tag">No recurring pattern detected</p>'}
+        </div>
+        <div class="agent-report-card">
+          <h4>📋 Inspector</h4>
+          <p>${c.inspector?.investigation_summary || "Case report generated."}</p>
+          <p class="tag">Root cause: ${c.inspector?.root_cause || "Under review"}</p>
+        </div>
+        <div class="agent-report-card">
+          <h4>📣 Herald</h4>
+          <p>${c.herald?.herald_message || "Escalation assessed."}</p>
+          ${escalate ? `<p class="tag warn">🚨 Escalating to: ${c.herald?.escalation_level}</p>` : '<p class="tag">No escalation needed yet</p>'}
+        </div>
+      </div>
+
+      ${
+        c.herald?.formal_complaint
+          ? `
+      <div class="complaint-box">
+        <h4>📄 Auto-Generated Formal Complaint</h4>
+        <p>${c.herald.formal_complaint}</p>
+      </div>`
+          : ""
+      }
+
+      ${
+        c.herald?.social_media_post
+          ? `
+      <div class="complaint-box">
+        <h4>📢 Social Media Draft</h4>
+        <p>${c.herald.social_media_post}</p>
+      </div>`
+          : ""
+      }
+
+      <div class="action-plan">
+        <h4>🗂️ Action Plan</h4>
+        ${(c.inspector?.action_plan || [])
+          .map(
+            (a) =>
+              `<div class="action-step">
+            <span class="step-num">${a.step}</span>
+            <div><strong>${a.action}</strong><br/><small>${a.timeline}</small></div>
+          </div>`,
+          )
+          .join("")}
+      </div>
+
+      <a href="/dashboard" class="btn-link">→ View on Conspiracy Board</a>
+    </div>
+  `;
+      }
+    </script>
+  </body>
+</html>

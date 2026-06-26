@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IssueSherlock — Case Detail</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital@0;1&family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="logo">🔍 IssueSherlock</div>
+      <a href="/dashboard" class="btn-nav">← Conspiracy Board</a>
+    </nav>
+
+    <div class="container" id="caseContainer">
+      <p style="color: var(--muted); margin-top: 3rem">Loading case file...</p>
+    </div>
+
+    <script>
+      const caseId = "{{ case_id }}";
+
+      fetch(`/api/issue/${caseId}`)
+        .then((r) => r.json())
+        .then((c) => {
+          if (c.error) {
+            document.getElementById("caseContainer").innerHTML =
+              '<p class="error">Case not found.</p>';
+            return;
+          }
+
+          document.title = `IssueSherlock — ${c.case_id}`;
+
+          document.getElementById("caseContainer").innerHTML = `
+      <div style="margin:2rem 0">
+        <div class="case-id">Case File #${c.case_id}</div>
+        <div class="case-headline">${c.headline}</div>
+        <div class="elementary">"${c.sherlock?.elementary || ""}"</div>
+        <div style="margin-top:0.5rem">
+          <span class="severity-badge severity-${c.severity}">${c.severity}</span>
+          ${c.resolved ? '<span style="color:var(--green);margin-left:1rem">✅ Resolved</span>' : '<span style="color:var(--accent2);margin-left:1rem">⏳ Pending</span>'}
+        </div>
+      </div>
+
+      <div class="agent-reports">
+        <div class="agent-report-card">
+          <h4>🔬 Watson — Image Analysis</h4>
+          <p>${c.watson?.watson_notes || c.watson?.visible_damage}</p>
+          <p class="tag">Type: ${c.watson?.issue_type} | Severity Score: ${c.watson?.severity_score}/10</p>
+          <p class="tag">Area: ${c.watson?.estimated_area} | Immediate Risk: ${c.watson?.immediate_risk ? "⚠️ Yes" : "✅ No"}</p>
+          <p class="tag">${c.watson?.risk_reason}</p>
+        </div>
+
+        <div class="agent-report-card">
+          <h4>🕵️ Sherlock — Pattern Detection</h4>
+          <p>${c.sherlock?.sherlock_deduction}</p>
+          <p class="tag">Pattern: ${c.sherlock?.pattern_type} | Recurrence: ${c.sherlock?.recurrence_count}x</p>
+          <p class="tag">Weather Correlation: ${c.sherlock?.weather_correlation}</p>
+          ${c.sherlock?.hotspot ? `<p class="tag warn">🔥 Hotspot: ${c.sherlock?.hotspot_reason}</p>` : ""}
+        </div>
+
+        <div class="agent-report-card">
+          <h4>📋 Inspector — Root Cause</h4>
+          <p>${c.inspector?.investigation_summary}</p>
+          <p class="tag">Root Cause: ${c.inspector?.root_cause}</p>
+          <p class="tag">Infrastructure Health: ${c.inspector?.infrastructure_health_score}/100</p>
+          <p class="tag">Department: ${c.inspector?.recommended_department}</p>
+          <p class="tag">Est. Resolution: ${c.inspector?.estimated_resolution_time}</p>
+        </div>
+
+        <div class="agent-report-card">
+          <h4>📣 Herald — Escalation</h4>
+          <p>${c.herald?.herald_message}</p>
+          <p class="tag">Level: ${c.herald?.escalation_level} | Shame Score: ${c.herald?.shame_score}/100</p>
+          ${c.herald?.should_escalate ? `<p class="tag warn">🚨 ${c.herald?.escalation_reason}</p>` : ""}
+        </div>
+      </div>
+
+      <div class="action-plan">
+        <h4>🗂️ Action Plan</h4>
+        ${(c.inspector?.action_plan || [])
+          .map(
+            (a) => `
+          <div class="action-step">
+            <span class="step-num">${a.step}</span>
+            <div><strong>${a.action}</strong><br/><small>${a.timeline}</small></div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+
+      ${
+        c.inspector?.contributing_factors?.length
+          ? `
+      <div class="complaint-box">
+        <h4>⚠️ Contributing Factors</h4>
+        <ul style="margin:0.5rem 0 0 1.2rem;color:var(--muted)">
+          ${c.inspector.contributing_factors.map((f) => `<li>${f}</li>`).join("")}
+        </ul>
+      </div>`
+          : ""
+      }
+
+      ${
+        c.herald?.formal_complaint
+          ? `
+      <div class="complaint-box">
+        <h4>📄 Formal Complaint</h4>
+        <p style="white-space:pre-wrap">${c.herald.formal_complaint}</p>
+      </div>`
+          : ""
+      }
+
+      ${
+        c.herald?.social_media_post
+          ? `
+      <div class="complaint-box">
+        <h4>📢 Social Media Draft</h4>
+        <p>${c.herald.social_media_post}</p>
+      </div>`
+          : ""
+      }
+
+      ${
+        c.inspector?.prevention_recommendations?.length
+          ? `
+      <div class="complaint-box">
+        <h4>🛡️ Prevention Recommendations</h4>
+        <ul style="margin:0.5rem 0 0 1.2rem;color:var(--muted)">
+          ${c.inspector.prevention_recommendations.map((r) => `<li>${r}</li>`).join("")}
+        </ul>
+      </div>`
+          : ""
+      }
+
+      <div style="margin-top:2rem;padding:1rem;background:var(--surface2);border-radius:8px;color:var(--muted);font-size:0.85rem">
+        <strong>Reporter:</strong> ${c.reporter} &nbsp;|&nbsp;
+        <strong>Location:</strong> ${c.location} &nbsp;|&nbsp;
+        <strong>Filed:</strong> ${new Date(c.date).toLocaleString()}
+      </div>
+
+      ${
+        !c.resolved
+          ? `
+      <button onclick="resolveCase('${c.case_id}')" class="btn-primary" style="margin-top:1rem;background:var(--green);color:#000">
+        ✅ Mark as Resolved
+      </button>`
+          : ""
+      }
+    `;
+        });
+
+      function resolveCase(id) {
+        fetch(`/api/resolve/${id}`, { method: "POST" })
+          .then((r) => r.json())
+          .then(() => location.reload());
+      }
+    </script>
+  </body>
+</html>
