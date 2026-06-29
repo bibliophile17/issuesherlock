@@ -26,8 +26,8 @@
         Every Community Issue Has a <span class="highlight">Pattern.</span>
       </h1>
       <p class="subtitle">
-        AI-powered civic detective that doesn't just log issues — it
-        investigates them.
+        AI-powered civic detective that doesn't just log issues, it investigates
+        them.
       </p>
     </div>
 
@@ -65,7 +65,7 @@
               <textarea
                 name="description"
                 rows="4"
-                placeholder="Describe what you see — type of issue, size, location details, danger level..."
+                placeholder="Describe what you see: type of issue, size, location details, danger level..."
                 required
               ></textarea>
             </div>
@@ -169,7 +169,7 @@
           });
       });
 
-      // ── Image Upload ─────────────────────────────────────────────────────
+      // Image Upload
       const uploadZone = document.getElementById("uploadZone");
       const imageInput = document.getElementById("imageInput");
       uploadZone.addEventListener("click", () => imageInput.click());
@@ -185,7 +185,7 @@
         reader.readAsDataURL(file);
       });
 
-      // ── Form Submit ───────────────────────────────────────────────────────
+      // Form Submit
       const steps = ["watson", "sherlock", "inspector", "herald"];
 
       document

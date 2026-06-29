@@ -166,7 +166,7 @@ body {
 .agent-status { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
 .pipeline-arrow { color: var(--accent); font-size: 1.3rem; }
 
-/* ── Case Card ─────────────────────────────────────── */
+/* Case Card */
 .case-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -255,7 +255,7 @@ body {
 }
 .btn-link:hover { text-decoration: underline; }
 
-/* ── Dashboard ─────────────────────────────────────── */
+/* Dashboard */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -302,7 +302,7 @@ body {
 }
 .issue-item:hover { border-color: var(--accent); }
 
-/* ── Misc ──────────────────────────────────────────── */
+/* Misc */
 .error { color: var(--red); padding: 1rem; background: rgba(232,90,90,0.1); border-radius:8px; margin-top:1rem; }
 
 @media (max-width: 600px) {

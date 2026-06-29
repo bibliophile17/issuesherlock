@@ -111,13 +111,13 @@
         low: "#5ae8a0",
       };
 
-      // ── Map ───────────────────────────────────────────────────────────────
+      //Map
       const map = L.map("conspiracyMap").setView([20.5937, 78.9629], 5);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
       }).addTo(map);
 
-      // ── Load Stats ────────────────────────────────────────────────────────
+      // Load Stats
       fetch("/api/stats")
         .then((r) => r.json())
         .then((s) => {
@@ -130,7 +130,7 @@
             s.resolution_rate + "%";
         });
 
-      // ── Load Issues ───────────────────────────────────────────────────────
+      //Load Issues
       fetch("/api/issues")
         .then((r) => r.json())
         .then((issues) => {
